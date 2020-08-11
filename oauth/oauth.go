@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/mercadolibre/golang-restclient/rest"
-	"github.com/shakilbd009/go-oauth-lib/oauth/errors"
+	"github.com/shakilbd009/go-utils-lib/rest_errors"
 )
 
 const (
@@ -67,7 +67,7 @@ func GetCallerID(req *http.Request) int64 {
 	return callerID
 }
 
-func AuthenticateRequest(request *http.Request) *errors.RestErr {
+func AuthenticateRequest(request *http.Request) rest_errors.RestErr {
 
 	if request == nil {
 		return nil
@@ -80,7 +80,7 @@ func AuthenticateRequest(request *http.Request) *errors.RestErr {
 	}
 	at, err := getAccessToken(accessToken)
 	if err != nil {
-		if err.Status == http.StatusNotFound {
+		if err.Status() == http.StatusNotFound {
 			return nil
 		}
 		return err
@@ -98,22 +98,22 @@ func cleanRequest(request *http.Request) {
 	request.Header.Del(headerXCallerID)
 }
 
-func getAccessToken(at string) (*accessToken, *errors.RestErr) {
+func getAccessToken(at string) (*accessToken, rest_errors.RestErr) {
 
 	response := oauthRestClient.Get(fmt.Sprintf("/oauth/access_token/%s", at))
 	if response == nil || response.Response == nil {
-		return nil, errors.NewInternalServerError("invalid restclient response when trying to get access token")
+		return nil, rest_errors.NewInternalServerError("invalid restclient response when trying to get access token", fmt.Errorf("restClient_error"))
 	}
 	if response.StatusCode > 299 {
-		var restErr errors.RestErr
+		var restErr rest_errors.RestErr
 		if err := json.Unmarshal(response.Bytes(), &restErr); err != nil {
-			return nil, errors.NewInternalServerError("invalid error interface when trying to unmarshal error msg")
+			return nil, rest_errors.NewInternalServerError("invalid error interface when trying to unmarshal error msg", fmt.Errorf("restClient_error"))
 		}
-		return nil, &restErr
+		return nil, restErr
 	}
 	var access_token accessToken
 	if err := json.Unmarshal(response.Bytes(), &access_token); err != nil {
-		return nil, errors.NewInternalServerError("invalid error interface when trying to unmarshal error msg")
+		return nil, rest_errors.NewInternalServerError("invalid error interface when trying to unmarshal error msg", fmt.Errorf("restClient_error"))
 	}
 	return &access_token, nil
 }
